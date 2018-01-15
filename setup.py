@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 
 setup(
     name='bjson',
@@ -7,6 +7,6 @@ setup(
     author='namuyan',
     author_email='http://twitter.com/namuyan_mine/',
     url='https://github.com/namuyan/bin-json',
-    packages=find_packages(),
+    py_modules=['bjson'],
     license="MIT"
 )

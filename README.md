@@ -17,7 +17,9 @@ Python3
 インストール
 -----------
 ```commandline
-pip install git+https://github.com/namuyan/bin-json.git
+git clone https://github.com/namuyan/bin-json.git
+cd bin-json
+sudo python3 setup.py install
 ```
 
 テスト
