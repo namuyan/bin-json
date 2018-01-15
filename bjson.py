@@ -2,15 +2,18 @@
 # -*- coding: utf-8 -*-
 
 import math
+import struct
 
 INT = 0
-STR = 1
-BYTES = 2
-LIST = 3
-TUPLE = 4
-SET = 5
-DICT = 6
+FLOAT = 1
+STR = 2
+BYTES = 3
+LIST = 4
+TUPLE = 5
+SET = 6
+DICT = 7
 BIN_INT = INT.to_bytes(1, 'big')
+BIN_FLOAT = FLOAT.to_bytes(1, 'big')
 BIN_STR = STR.to_bytes(1, 'big')
 BIN_BYTES = BYTES.to_bytes(1, 'big')
 BIN_LIST = LIST.to_bytes(1, 'big')
@@ -20,6 +23,14 @@ BIN_DICT = DICT.to_bytes(1, 'big')
 
 
 class BinaryTool:
+    @staticmethod
+    def float2bin(f):
+        return struct.pack("d", f)
+
+    @staticmethod
+    def bin2float(b):
+        return struct.unpack("d", b[:8])[0], b[8:]
+
     @staticmethod
     def str2bin(s):
         str_len = len(s.encode())
@@ -65,6 +76,10 @@ def dumps(obj):
         b = BIN_INT
         b += BinaryTool.int2bin(i=obj)
 
+    elif t == float:
+        b = BIN_FLOAT
+        b += BinaryTool.float2bin(f=obj)
+
     elif t == str:
         b = BIN_STR
         b += BinaryTool.str2bin(s=obj)
@@ -107,6 +122,8 @@ def _loads(b):
 
     if b_type == INT:
         result, b = BinaryTool.bin2int(b=b)
+    elif b_type == FLOAT:
+        result, b = BinaryTool.bin2float(b=b)
     elif b_type == STR:
         result, b = BinaryTool.bin2str(b=b)
     elif b_type == BYTES:
