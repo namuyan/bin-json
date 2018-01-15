@@ -39,10 +39,10 @@ class BinaryTool:
 
     @staticmethod
     def bin2str(b):
-        bin_pow, b = int.from_bytes(b[:1], 'big'), b[1:]
-        bin_len, b = int.from_bytes(b[:bin_pow], 'big'), b[bin_pow:]
-        bin_str, b = b[:bin_len], b[bin_len:]
-        return bin_str.decode(), b
+        bin_pow = int.from_bytes(b[:1], 'big')
+        bin_len = int.from_bytes(b[1:1+bin_pow], 'big')
+        bin_str = b[1+bin_pow:1+bin_pow+bin_len]
+        return bin_str.decode(), b[1+bin_pow+bin_len:]
 
     @staticmethod
     def int2bin(i):
@@ -51,9 +51,9 @@ class BinaryTool:
 
     @staticmethod
     def bin2int(b):
-        bin_pow, b = int.from_bytes(b[:1], 'big'), b[1:]
-        bin_int, b = int.from_bytes(b[:bin_pow], 'big'), b[bin_pow:]
-        return bin_int, b
+        bin_pow = int.from_bytes(b[:1], 'big')
+        bin_int = int.from_bytes(b[1:1+bin_pow], 'big')
+        return bin_int, b[1+bin_pow:]
 
     @staticmethod
     def byte2bin(h):
@@ -63,10 +63,10 @@ class BinaryTool:
 
     @staticmethod
     def bin2byte(b):
-        bin_pow, b = int.from_bytes(b[:1], 'big'), b[1:]
-        bin_len, b = int.from_bytes(b[:bin_pow], 'big'), b[bin_pow:]
-        bin_byte, b = b[:bin_len], b[bin_len:]
-        return bin_byte, b
+        bin_pow = int.from_bytes(b[:1], 'big')
+        bin_len = int.from_bytes(b[1:1+bin_pow], 'big')
+        bin_byte = b[1+bin_pow:1+bin_pow+bin_len]
+        return bin_byte, b[1+bin_pow+bin_len:]
 
 
 def dumps(obj):
