@@ -1,6 +1,6 @@
 bin-json
 ===========
-Pythonの特徴的なオブジェクト、int, str, bytes, tuple, set, dict, listを含んだデータを
+Pythonの特徴的なオブジェクト、int, float, str, bytes, tuple, set, dict, listを含んだデータを
 バイナリ形式に変換します。
 
 目的
