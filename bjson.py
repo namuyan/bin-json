@@ -3,6 +3,7 @@
 
 import math
 import struct
+import zlib
 
 ORDER = 'big'
 INT = 0
@@ -89,7 +90,7 @@ class BinaryTool:
         return bin_byte, b[1+bin_pow+bin_len:]
 
 
-def dumps(obj):
+def _dumps(obj):
     t = type(obj)
     if t == int:
         b = BIN_INT
@@ -111,29 +112,37 @@ def dumps(obj):
         b = BIN_LIST
         b += BinaryTool.int2bin(i=len(obj))
         for n in obj:
-            b += dumps(obj=n)
+            b += _dumps(obj=n)
 
     elif t == tuple:
         b = BIN_TUPLE
         b += BinaryTool.int2bin(i=len(obj))
         for n in obj:
-            b += dumps(obj=n)
+            b += _dumps(obj=n)
 
     elif t == set:
         b = BIN_SET
         b += BinaryTool.int2bin(i=len(obj))
         for n in sorted(obj):
-            b += dumps(obj=n)
+            b += _dumps(obj=n)
 
     elif t == dict:
         b = BIN_DICT
         b += BinaryTool.int2bin(i=len(obj))
         for k in sorted(obj):
-            b += dumps(obj=k)
-            b += dumps(obj=obj[k])
+            b += _dumps(obj=k)
+            b += _dumps(obj=obj[k])
     else:
         raise BJsonEncodeError('Unknown type %s' % type(obj))
     return b
+
+
+def dumps(obj, compress=True):
+    b = _dumps(obj=obj)
+    if compress:
+        return b'\x00' + zlib.compress(b)
+    else:
+        return b'\x01' + b
 
 
 def _loads(b):
@@ -184,6 +193,10 @@ def _loads(b):
 
 
 def loads(b):
+    if b[0] == 0:
+        b = zlib.decompress(b[1:])
+    else:
+        b = b[1:]
     result, b = _loads(b=b)
     if len(b) == 0:
         return result
@@ -206,7 +219,7 @@ def test():
     s = time.time()
     bj = dumps(t)
     print("encode", time.time() - s)
-    print(bj)
+    print(len(bj))
     print(t == loads(bj))
     print("decode", time.time() - s)
 

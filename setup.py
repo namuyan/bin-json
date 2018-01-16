@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='bjson',
-    version='0.0.3',
+    version='0.1.0',
     description='Alternative way to send Python3 object by binary.',
     author='namuyan',
     author_email='http://twitter.com/namuyan_mine/',
