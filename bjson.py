@@ -46,6 +46,25 @@ class BinaryTool:
         return bin_str, b[1+bin_pow+bin_len:]
 
     @staticmethod
+    def str2bin_test(s):
+        byte_str = s.encode()
+        if len(byte_str) < 256:
+            return b'\x00' + len(byte_str).to_bytes(1, byteorder=ORDER) + byte_str
+        elif len(byte_str) < 18446744073709551616:
+            return b'\x01' + len(byte_str).to_bytes(8, byteorder=ORDER) + byte_str
+        else:
+            raise Exception("string is too long!")
+
+    @staticmethod
+    def bin2str_test(b):
+        if b[0] == 0:
+            str_len = b[1]
+            return b[2:2 + str_len].decode(), b[2 + str_len:]
+        else:
+            str_len = int.from_bytes(b[1:9], byteorder=ORDER)
+            return b[9:9 + str_len].decode(), b[9 + str_len:]
+
+    @staticmethod
     def int2bin(i):
         int_pow = 1 if i == 0 else max(1, int(math.log(i, 256) + 1))
         return int_pow.to_bytes(1, byteorder=ORDER) + i.to_bytes(int_pow, byteorder=ORDER)
