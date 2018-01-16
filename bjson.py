@@ -132,7 +132,7 @@ def dumps(obj):
             b += dumps(obj=k)
             b += dumps(obj=obj[k])
     else:
-        raise EnvironmentError('Unknown type %s' % type(obj))
+        raise BJsonEncodeError('Unknown type %s' % type(obj))
     return b
 
 
@@ -179,7 +179,7 @@ def _loads(b):
             v, b = _loads(b=b)
             result[k] = v
     else:
-        raise EnvironmentError('Unknown type %d' % b_type)
+        raise BJsonDecodeError('Unknown type %d' % b_type)
     return result, b
 
 
@@ -188,7 +188,13 @@ def loads(b):
     if len(b) == 0:
         return result
     else:
-        raise EnvironmentError('bjson decode error')
+        raise BJsonDecodeError('output binary isn\'t zero. %s' % b)
+
+
+class BJsonEncodeError(Exception): pass
+
+
+class BJsonDecodeError(Exception): pass
 
 
 def test():
