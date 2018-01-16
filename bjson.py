@@ -4,6 +4,7 @@
 import math
 import struct
 
+ORDER = 'big'
 INT = 0
 FLOAT = 1
 STR = 2
@@ -12,14 +13,14 @@ LIST = 4
 TUPLE = 5
 SET = 6
 DICT = 7
-BIN_INT = INT.to_bytes(1, 'big')
-BIN_FLOAT = FLOAT.to_bytes(1, 'big')
-BIN_STR = STR.to_bytes(1, 'big')
-BIN_BYTES = BYTES.to_bytes(1, 'big')
-BIN_LIST = LIST.to_bytes(1, 'big')
-BIN_TUPLE = TUPLE.to_bytes(1, 'big')
-BIN_SET = SET.to_bytes(1, 'big')
-BIN_DICT = DICT.to_bytes(1, 'big')
+BIN_INT = INT.to_bytes(1, byteorder=ORDER)
+BIN_FLOAT = FLOAT.to_bytes(1, byteorder=ORDER)
+BIN_STR = STR.to_bytes(1, byteorder=ORDER)
+BIN_BYTES = BYTES.to_bytes(1, byteorder=ORDER)
+BIN_LIST = LIST.to_bytes(1, byteorder=ORDER)
+BIN_TUPLE = TUPLE.to_bytes(1, byteorder=ORDER)
+BIN_SET = SET.to_bytes(1, byteorder=ORDER)
+BIN_DICT = DICT.to_bytes(1, byteorder=ORDER)
 
 
 class BinaryTool:
@@ -35,43 +36,42 @@ class BinaryTool:
     def str2bin(s):
         str_len = len(s.encode())
         str_pow = 1 if str_len == 0 else max(1, int(math.log(str_len, 256) + 1))
-        return str_pow.to_bytes(1, 'big') + str_len.to_bytes(str_pow, 'big') + s.encode()
+        return str_pow.to_bytes(1, byteorder=ORDER) + str_len.to_bytes(str_pow, byteorder=ORDER) + s.encode()
 
     @staticmethod
     def bin2str(b):
-        bin_pow = int.from_bytes(b[:1], 'big')
-        bin_len = int.from_bytes(b[1:1+bin_pow], 'big')
-        bin_str = b[1+bin_pow:1+bin_pow+bin_len]
-        return bin_str.decode(), b[1+bin_pow+bin_len:]
+        bin_pow = b[0]
+        bin_len = int.from_bytes(b[1:1+bin_pow], byteorder=ORDER)
+        bin_str = b[1+bin_pow:1+bin_pow+bin_len].decode()
+        return bin_str, b[1+bin_pow+bin_len:]
 
     @staticmethod
     def int2bin(i):
         int_pow = 1 if i == 0 else max(1, int(math.log(i, 256) + 1))
-        return int_pow.to_bytes(1, 'big') + i.to_bytes(int_pow, 'big')
+        return int_pow.to_bytes(1, byteorder=ORDER) + i.to_bytes(int_pow, byteorder=ORDER)
 
     @staticmethod
     def bin2int(b):
-        bin_pow = int.from_bytes(b[:1], 'big')
-        bin_int = int.from_bytes(b[1:1+bin_pow], 'big')
+        bin_pow = b[0]
+        bin_int = int.from_bytes(b[1:1+bin_pow], byteorder=ORDER)
         return bin_int, b[1+bin_pow:]
 
     @staticmethod
     def byte2bin(h):
         byte_len = len(h)
         byte_pow = 1 if byte_len == 0 else max(1, int(math.log(byte_len, 256) + 1))
-        return byte_pow.to_bytes(1, 'big') + byte_len.to_bytes(byte_pow, 'big') + h
+        return byte_pow.to_bytes(1, byteorder=ORDER) + byte_len.to_bytes(byte_pow, byteorder=ORDER) + h
 
     @staticmethod
     def bin2byte(b):
-        bin_pow = int.from_bytes(b[:1], 'big')
-        bin_len = int.from_bytes(b[1:1+bin_pow], 'big')
+        bin_pow = b[0]
+        bin_len = int.from_bytes(b[1:1+bin_pow], byteorder=ORDER)
         bin_byte = b[1+bin_pow:1+bin_pow+bin_len]
         return bin_byte, b[1+bin_pow+bin_len:]
 
 
 def dumps(obj):
     t = type(obj)
-    b = b''
     if t == int:
         b = BIN_INT
         b += BinaryTool.int2bin(i=obj)
@@ -118,7 +118,7 @@ def dumps(obj):
 
 
 def _loads(b):
-    b_type, b = int.from_bytes(b[:1], 'big'), b[1:]
+    b_type, b = b[0], b[1:]
 
     if b_type == INT:
         result, b = BinaryTool.bin2int(b=b)
