@@ -22,12 +22,15 @@ cd bin-json
 sudo python3 setup.py install
 ```
 
+or
+```commandline
+sudo pip3 install git+https://github.com/namuyan/bin-json.git
+```
+
 テスト
 ------
-```python
-import bjson
- 
-bjson.test()
+```text
+>> python3 test.py
 ```
 
 使い方

@@ -9,14 +9,17 @@ ORDER = 'big'
 INT = 0
 FLOAT = 1
 STR = 2
-BYTES = 3
-LIST = 4
-TUPLE = 5
-SET = 6
-DICT = 7
+STR_LONG = 3
+BYTES = 4
+LIST = 5
+TUPLE = 6
+SET = 7
+DICT = 8
+VERSION = int(1).to_bytes(1, byteorder=ORDER)
 BIN_INT = INT.to_bytes(1, byteorder=ORDER)
 BIN_FLOAT = FLOAT.to_bytes(1, byteorder=ORDER)
 BIN_STR = STR.to_bytes(1, byteorder=ORDER)
+BIN_STR_LONG = STR_LONG.to_bytes(1, byteorder=ORDER)
 BIN_BYTES = BYTES.to_bytes(1, byteorder=ORDER)
 BIN_LIST = LIST.to_bytes(1, byteorder=ORDER)
 BIN_TUPLE = TUPLE.to_bytes(1, byteorder=ORDER)
@@ -36,11 +39,21 @@ class BinaryTool:
     @staticmethod
     def str2bin(s):
         str_len = len(s.encode())
+        return str_len.to_bytes(1, byteorder=ORDER) + s.encode()
+
+    @staticmethod
+    def bin2str(b):
+        bin_len = b[0]
+        return b[1:1+bin_len].decode(), b[1+bin_len:]
+
+    @staticmethod
+    def str_long2bin(s):
+        str_len = len(s.encode())
         str_pow = 1 if str_len == 0 else max(1, int(math.log(str_len, 256) + 1))
         return str_pow.to_bytes(1, byteorder=ORDER) + str_len.to_bytes(str_pow, byteorder=ORDER) + s.encode()
 
     @staticmethod
-    def bin2str(b):
+    def bin2str_long(b):
         bin_pow = b[0]
         bin_len = int.from_bytes(b[1:1+bin_pow], byteorder=ORDER)
         bin_str = b[1+bin_pow:1+bin_pow+bin_len].decode()
@@ -100,9 +113,13 @@ def _dumps(obj):
         b = BIN_FLOAT
         b += BinaryTool.float2bin(f=obj)
 
-    elif t == str:
+    elif t == str and len(obj) < 256:
         b = BIN_STR
         b += BinaryTool.str2bin(s=obj)
+
+    elif t == str:
+        b = BIN_STR_LONG
+        b += BinaryTool.str_long2bin(s=obj)
 
     elif t == bytes:
         b = BIN_BYTES
@@ -140,9 +157,9 @@ def _dumps(obj):
 def dumps(obj, compress=True):
     b = _dumps(obj=obj)
     if compress:
-        return b'\x00' + zlib.compress(b)
+        return b'\x00' + VERSION + zlib.compress(b)
     else:
-        return b'\x01' + b
+        return b'\x01' + VERSION + b
 
 
 def _loads(b):
@@ -154,6 +171,8 @@ def _loads(b):
         result, b = BinaryTool.bin2float(b=b)
     elif b_type == STR:
         result, b = BinaryTool.bin2str(b=b)
+    elif b_type == STR_LONG:
+        result, b = BinaryTool.bin2str_long(b=b)
     elif b_type == BYTES:
         result, b = BinaryTool.bin2byte(b=b)
 
@@ -192,11 +211,13 @@ def _loads(b):
     return result, b
 
 
-def loads(b):
-    if b[0] == 0:
-        b = zlib.decompress(b[1:])
-    else:
-        b = b[1:]
+def loads(b, check_ver=True):
+    f_compressed = b[0] == 0
+    i_version = b[1].to_bytes(1, byteorder=ORDER)
+    if check_ver and i_version != VERSION:
+        raise BJsonVersionError("Do not match bjson version. this:%d, input:%d" % (VERSION, i_version))
+
+    b = zlib.decompress(b[2:]) if f_compressed else b[2:]
     result, b = _loads(b=b)
     if len(b) == 0:
         return result
@@ -204,24 +225,13 @@ def loads(b):
         raise BJsonDecodeError('output binary isn\'t zero. %s' % b)
 
 
-class BJsonEncodeError(Exception): pass
+class BJsonBaseError(Exception): pass
 
 
-class BJsonDecodeError(Exception): pass
+class BJsonEncodeError(BJsonBaseError): pass
 
 
-def test():
-    import time
-    import json
-    with open("sample.json") as f:
-        t = json.load(f)
-    print(t)
-    s = time.time()
-    bj = dumps(t)
-    print("encode", time.time() - s)
-    print(len(bj))
-    print(t == loads(bj))
-    print("decode", time.time() - s)
+class BJsonDecodeError(BJsonBaseError): pass
 
-if __name__ == "__main__":
-    test()
+
+class BJsonVersionError(BJsonBaseError): pass
