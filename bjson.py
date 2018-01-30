@@ -162,6 +162,11 @@ def dumps(obj, compress=True):
         return b'\x01' + VERSION + b
 
 
+def dump(obj, fp, compress=True):
+    assert 'b' in fp.mode, 'Need binary mode'
+    fp.write(dumps(obj=obj, compress=compress))
+
+
 def _loads(b):
     b_type, b = b[0], b[1:]
 
@@ -223,6 +228,12 @@ def loads(b, check_ver=True):
         return result
     else:
         raise BJsonDecodeError('output binary isn\'t zero. %s' % b)
+
+
+def load(fp, check_ver=True):
+    assert 'b' in fp.mode, 'Need binary mode'
+    b = fp.read()
+    return loads(b=b, check_ver=check_ver)
 
 
 class BJsonBaseError(Exception): pass
