@@ -15,6 +15,7 @@ LIST = 5
 TUPLE = 6
 SET = 7
 DICT = 8
+BOOL = 9
 VERSION = int(1).to_bytes(1, byteorder=ORDER)
 BIN_INT = INT.to_bytes(1, byteorder=ORDER)
 BIN_FLOAT = FLOAT.to_bytes(1, byteorder=ORDER)
@@ -25,6 +26,7 @@ BIN_LIST = LIST.to_bytes(1, byteorder=ORDER)
 BIN_TUPLE = TUPLE.to_bytes(1, byteorder=ORDER)
 BIN_SET = SET.to_bytes(1, byteorder=ORDER)
 BIN_DICT = DICT.to_bytes(1, byteorder=ORDER)
+BIN_BOOL = BOOL.to_bytes(1, byteorder=ORDER)
 
 
 class BinaryTool:
@@ -44,7 +46,7 @@ class BinaryTool:
     @staticmethod
     def bin2str(b):
         bin_len = b[0]
-        return b[1:1+bin_len].decode(), b[1+bin_len:]
+        return b[1:1 + bin_len].decode(), b[1 + bin_len:]
 
     @staticmethod
     def str_long2bin(s):
@@ -55,9 +57,9 @@ class BinaryTool:
     @staticmethod
     def bin2str_long(b):
         bin_pow = b[0]
-        bin_len = int.from_bytes(b[1:1+bin_pow], byteorder=ORDER)
-        bin_str = b[1+bin_pow:1+bin_pow+bin_len].decode()
-        return bin_str, b[1+bin_pow+bin_len:]
+        bin_len = int.from_bytes(b[1:1 + bin_pow], byteorder=ORDER)
+        bin_str = b[1 + bin_pow:1 + bin_pow + bin_len].decode()
+        return bin_str, b[1 + bin_pow + bin_len:]
 
     @staticmethod
     def str2bin_test(s):
@@ -86,8 +88,8 @@ class BinaryTool:
     @staticmethod
     def bin2int(b):
         bin_pow = b[0]
-        bin_int = int.from_bytes(b[1:1+bin_pow], byteorder=ORDER)
-        return bin_int, b[1+bin_pow:]
+        bin_int = int.from_bytes(b[1:1 + bin_pow], byteorder=ORDER)
+        return bin_int, b[1 + bin_pow:]
 
     @staticmethod
     def byte2bin(h):
@@ -98,9 +100,17 @@ class BinaryTool:
     @staticmethod
     def bin2byte(b):
         bin_pow = b[0]
-        bin_len = int.from_bytes(b[1:1+bin_pow], byteorder=ORDER)
-        bin_byte = b[1+bin_pow:1+bin_pow+bin_len]
-        return bin_byte, b[1+bin_pow+bin_len:]
+        bin_len = int.from_bytes(b[1:1 + bin_pow], byteorder=ORDER)
+        bin_byte = b[1 + bin_pow:1 + bin_pow + bin_len]
+        return bin_byte, b[1 + bin_pow + bin_len:]
+
+    @staticmethod
+    def bool2bin(tf):
+        return b'\x01' if tf else b'\x00'
+
+    @staticmethod
+    def bin2bool(b):
+        return True if b[0] == 1 else False, b[1:]
 
 
 def _dumps(obj):
@@ -149,6 +159,10 @@ def _dumps(obj):
         for k in sorted(obj):
             b += _dumps(obj=k)
             b += _dumps(obj=obj[k])
+
+    elif t == bool:
+        b = BIN_BOOL
+        b += BinaryTool.bool2bin(tf=obj)
     else:
         raise BJsonEncodeError('Unknown type %s' % type(obj))
     return b
@@ -211,13 +225,16 @@ def _loads(b):
             k, b = _loads(b=b)
             v, b = _loads(b=b)
             result[k] = v
+
+    elif b_type == BOOL:
+        result, b = BinaryTool.bin2bool(b=b)
     else:
         raise BJsonDecodeError('Unknown type %d' % b_type)
     return result, b
 
 
 def loads(b, check_ver=True):
-    f_compressed = b[0] == 0
+    f_compressed = (b[0] == 0)
     i_version = b[1].to_bytes(1, byteorder=ORDER)
     if check_ver and i_version != VERSION:
         raise BJsonVersionError("Do not match bjson version. this:%d, input:%d" % (VERSION, i_version))
