@@ -12,7 +12,6 @@ def test():
     with open("sample.json") as f:
         t = json.load(f)
     t.append("namuyan" * 1024)
-    print(t)
     s = time.time()
 
     pr_dump = cProfile.Profile()
