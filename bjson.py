@@ -16,6 +16,7 @@ TUPLE = 6
 SET = 7
 DICT = 8
 BOOL = 9
+NULL = 10
 VERSION = int(1).to_bytes(1, byteorder=ORDER)
 BIN_INT = INT.to_bytes(1, byteorder=ORDER)
 BIN_FLOAT = FLOAT.to_bytes(1, byteorder=ORDER)
@@ -27,6 +28,7 @@ BIN_TUPLE = TUPLE.to_bytes(1, byteorder=ORDER)
 BIN_SET = SET.to_bytes(1, byteorder=ORDER)
 BIN_DICT = DICT.to_bytes(1, byteorder=ORDER)
 BIN_BOOL = BOOL.to_bytes(1, byteorder=ORDER)
+BIN_NULL = NULL.to_bytes(1, byteorder=ORDER)
 
 
 class Index:
@@ -47,8 +49,9 @@ class BinaryTool:
 
     @staticmethod
     def str2bin(s):
-        str_len = len(s.encode())
-        return str_len.to_bytes(1, byteorder=ORDER) + s.encode()
+        str_bytes = s.encode()
+        str_len = len(str_bytes)
+        return str_len.to_bytes(1, byteorder=ORDER) + str_bytes
 
     @staticmethod
     def bin2str(b, i):
@@ -59,9 +62,10 @@ class BinaryTool:
 
     @staticmethod
     def str_long2bin(s):
-        str_len = len(s.encode())
+        str_bytes = s.encode()
+        str_len = len(str_bytes)
         str_pow = 1 if str_len == 0 else max(1, int(math.log(str_len, 256) + 1))
-        return str_pow.to_bytes(1, byteorder=ORDER) + str_len.to_bytes(str_pow, byteorder=ORDER) + s.encode()
+        return str_pow.to_bytes(1, byteorder=ORDER) + str_len.to_bytes(str_pow, byteorder=ORDER) + str_bytes
 
     @staticmethod
     def bin2str_long(b, i):
@@ -110,54 +114,57 @@ class BinaryTool:
 
 def _dumps(obj):
     t = type(obj)
-    if t == int:
+    if isinstance(t, int):
         b = BIN_INT
         b += BinaryTool.int2bin(i=obj)
 
-    elif t == float:
+    elif isinstance(t, float):
         b = BIN_FLOAT
         b += BinaryTool.float2bin(f=obj)
 
-    elif t == str and len(obj) < 256:
+    elif isinstance(t, str) and len(obj) < 256:
         b = BIN_STR
         b += BinaryTool.str2bin(s=obj)
 
-    elif t == str:
+    elif isinstance(t, str):
         b = BIN_STR_LONG
         b += BinaryTool.str_long2bin(s=obj)
 
-    elif t == bytes:
+    elif isinstance(t, bytes):
         b = BIN_BYTES
         b += BinaryTool.byte2bin(h=obj)
 
-    elif t == list:
+    elif isinstance(t, list):
         b = BIN_LIST
         b += BinaryTool.int2bin(i=len(obj))
         for n in obj:
             b += _dumps(obj=n)
 
-    elif t == tuple:
+    elif isinstance(t, tuple):
         b = BIN_TUPLE
         b += BinaryTool.int2bin(i=len(obj))
         for n in obj:
             b += _dumps(obj=n)
 
-    elif t == set:
+    elif isinstance(t, set):
         b = BIN_SET
         b += BinaryTool.int2bin(i=len(obj))
         for n in sorted(obj):
             b += _dumps(obj=n)
 
-    elif t == dict:
+    elif isinstance(t, dict):
         b = BIN_DICT
         b += BinaryTool.int2bin(i=len(obj))
         for k in sorted(obj):
             b += _dumps(obj=k)
             b += _dumps(obj=obj[k])
 
-    elif t == bool:
+    elif isinstance(t, bool):
         b = BIN_BOOL
         b += BinaryTool.bool2bin(tf=obj)
+
+    elif isinstance(obj, type(None)):
+        b = BIN_NULL
     else:
         raise BJsonEncodeError('Unknown type %s' % type(obj))
     return b
@@ -217,6 +224,10 @@ def _loads(b, i):
 
     elif b_type == BOOL:
         result = BinaryTool.bin2bool(b=b, i=i)
+
+    elif b_type == NULL:
+        result = None
+
     else:
         raise BJsonDecodeError('Unknown type %d' % b_type)
     return result
