@@ -113,53 +113,52 @@ class BinaryTool:
 
 
 def _dumps(obj):
-    t = type(obj)
-    if isinstance(t, int):
+    if isinstance(obj, int):
         b = BIN_INT
         b += BinaryTool.int2bin(i=obj)
 
-    elif isinstance(t, float):
+    elif isinstance(obj, float):
         b = BIN_FLOAT
         b += BinaryTool.float2bin(f=obj)
 
-    elif isinstance(t, str) and len(obj) < 256:
+    elif isinstance(obj, str) and len(obj) < 256:
         b = BIN_STR
         b += BinaryTool.str2bin(s=obj)
 
-    elif isinstance(t, str):
+    elif isinstance(obj, str):
         b = BIN_STR_LONG
         b += BinaryTool.str_long2bin(s=obj)
 
-    elif isinstance(t, bytes):
+    elif isinstance(obj, bytes):
         b = BIN_BYTES
         b += BinaryTool.byte2bin(h=obj)
 
-    elif isinstance(t, list):
+    elif isinstance(obj, list):
         b = BIN_LIST
         b += BinaryTool.int2bin(i=len(obj))
         for n in obj:
             b += _dumps(obj=n)
 
-    elif isinstance(t, tuple):
+    elif isinstance(obj, tuple):
         b = BIN_TUPLE
         b += BinaryTool.int2bin(i=len(obj))
         for n in obj:
             b += _dumps(obj=n)
 
-    elif isinstance(t, set):
+    elif isinstance(obj, set):
         b = BIN_SET
         b += BinaryTool.int2bin(i=len(obj))
         for n in sorted(obj):
             b += _dumps(obj=n)
 
-    elif isinstance(t, dict):
+    elif isinstance(obj, dict):
         b = BIN_DICT
         b += BinaryTool.int2bin(i=len(obj))
         for k in sorted(obj):
             b += _dumps(obj=k)
             b += _dumps(obj=obj[k])
 
-    elif isinstance(t, bool):
+    elif isinstance(obj, bool):
         b = BIN_BOOL
         b += BinaryTool.bool2bin(tf=obj)
 
@@ -237,7 +236,7 @@ def loads(b, check_ver=True):
     f_compressed = (b[0] == 0)
     i_version = b[1].to_bytes(1, byteorder=ORDER)
     if check_ver and i_version != VERSION:
-        raise BJsonVersionError("Do not match bjson version. this:%d, input:%d" % (VERSION, i_version))
+        raise BJsonVersionError("Do not match bjson version. this:%s, input:%s" % (VERSION, i_version))
 
     b = zlib.decompress(b[2:]) if f_compressed else b[2:]
     i = Index()
