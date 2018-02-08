@@ -113,7 +113,10 @@ class BinaryTool:
 
 
 def _dumps(obj):
-    if isinstance(obj, int):
+    if isinstance(obj, bool):
+        b = BIN_BOOL
+        b += BinaryTool.bool2bin(tf=obj)
+    elif isinstance(obj, int):
         b = BIN_INT
         b += BinaryTool.int2bin(i=obj)
 
@@ -157,10 +160,6 @@ def _dumps(obj):
         for k in sorted(obj):
             b += _dumps(obj=k)
             b += _dumps(obj=obj[k])
-
-    elif isinstance(obj, bool):
-        b = BIN_BOOL
-        b += BinaryTool.bool2bin(tf=obj)
 
     elif isinstance(obj, type(None)):
         b = BIN_NULL
