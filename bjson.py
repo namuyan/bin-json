@@ -6,19 +6,24 @@ import struct
 import zlib
 
 ORDER = 'big'
-INT = 0
-FLOAT = 1
-STR = 2
-STR_LONG = 3
-BYTES = 4
-LIST = 5
-TUPLE = 6
-SET = 7
-DICT = 8
-BOOL = 9
-NULL = 10
-VERSION = int(1).to_bytes(1, byteorder=ORDER)
+BOOL = 0
+INT = 1
+MINUS_INT = 2
+COMPLEX = 3
+FLOAT = 4
+STR = 5
+STR_LONG = 6
+BYTES = 7
+LIST = 8
+TUPLE = 9
+SET = 10
+DICT = 11
+NULL = 12
+VERSION = int(2).to_bytes(1, byteorder=ORDER)
+BIN_BOOL = BOOL.to_bytes(1, byteorder=ORDER)
 BIN_INT = INT.to_bytes(1, byteorder=ORDER)
+BIN_MINUS_INT = MINUS_INT.to_bytes(1, byteorder=ORDER)
+BIN_COMPLEX = COMPLEX.to_bytes(1, byteorder=ORDER)
 BIN_FLOAT = FLOAT.to_bytes(1, byteorder=ORDER)
 BIN_STR = STR.to_bytes(1, byteorder=ORDER)
 BIN_STR_LONG = STR_LONG.to_bytes(1, byteorder=ORDER)
@@ -27,7 +32,6 @@ BIN_LIST = LIST.to_bytes(1, byteorder=ORDER)
 BIN_TUPLE = TUPLE.to_bytes(1, byteorder=ORDER)
 BIN_SET = SET.to_bytes(1, byteorder=ORDER)
 BIN_DICT = DICT.to_bytes(1, byteorder=ORDER)
-BIN_BOOL = BOOL.to_bytes(1, byteorder=ORDER)
 BIN_NULL = NULL.to_bytes(1, byteorder=ORDER)
 
 
@@ -111,14 +115,34 @@ class BinaryTool:
         i.index += 1
         return r
 
+    @staticmethod
+    def cmp2bin(c):
+        real = BinaryTool.float2bin(f=c.real)
+        imag = BinaryTool.float2bin(f=c.imag)
+        return real + imag
+
+    @staticmethod
+    def bin2cmp(b, i):
+        real = BinaryTool.bin2float(b=b, i=i)
+        imag = BinaryTool.bin2float(b=b, i=i)
+        return complex(real=real, imag=imag)
+
 
 def _dumps(obj):
     if isinstance(obj, bool):
         b = BIN_BOOL
         b += BinaryTool.bool2bin(tf=obj)
-    elif isinstance(obj, int):
+    elif isinstance(obj, int) and obj >= 0:
         b = BIN_INT
         b += BinaryTool.int2bin(i=obj)
+
+    elif isinstance(obj, int):
+        b = BIN_MINUS_INT
+        b += BinaryTool.int2bin(i=-1 * obj)
+
+    elif isinstance(obj, complex):
+        b = BIN_COMPLEX
+        b += BinaryTool.cmp2bin(c=obj)
 
     elif isinstance(obj, float):
         b = BIN_FLOAT
@@ -189,8 +213,14 @@ def _loads(b, i):
     b_type = b[i.index]
     i.index += 1
 
-    if b_type == INT:
+    if b_type == BOOL:
+        result = BinaryTool.bin2bool(b=b, i=i)
+    elif b_type == INT:
         result = BinaryTool.bin2int(b=b, i=i)
+    elif b_type == MINUS_INT:
+        result = BinaryTool.bin2int(b=b, i=i) * -1
+    elif b_type == COMPLEX:
+        result = BinaryTool.bin2cmp(b=b, i=i)
     elif b_type == FLOAT:
         result = BinaryTool.bin2float(b=b, i=i)
     elif b_type == STR:
@@ -219,9 +249,6 @@ def _loads(b, i):
             k = _loads(b=b, i=i)
             v = _loads(b=b, i=i)
             result[k] = v
-
-    elif b_type == BOOL:
-        result = BinaryTool.bin2bool(b=b, i=i)
 
     elif b_type == NULL:
         result = None
