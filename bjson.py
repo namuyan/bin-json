@@ -40,150 +40,80 @@ class Index:
     all = 0
 
 
-class BinaryTool:
-    @staticmethod
-    def float2bin(f):
-        return struct.pack("d", f)
-
-    @staticmethod
-    def bin2float(b, i):
-        r = struct.unpack("d", b[i.index:i.index + 8])[0]
-        i.index += 8
-        return r
-
-    @staticmethod
-    def str2bin(s):
-        str_bytes = s.encode()
-        str_len = len(str_bytes)
-        return str_len.to_bytes(1, byteorder=ORDER) + str_bytes
-
-    @staticmethod
-    def bin2str(b, i):
-        bin_len = b[i.index]
-        r = b[i.index + 1:i.index + 1 + bin_len].decode()
-        i.index += 1 + bin_len
-        return r
-
-    @staticmethod
-    def str_long2bin(s):
-        str_bytes = s.encode()
-        str_len = len(str_bytes)
-        str_pow = 1 if str_len == 0 else max(1, int(math.log(str_len, 256) + 1))
-        return str_pow.to_bytes(1, byteorder=ORDER) + str_len.to_bytes(str_pow, byteorder=ORDER) + str_bytes
-
-    @staticmethod
-    def bin2str_long(b, i):
-        bin_pow = b[i.index]
-        bin_len = int.from_bytes(b[i.index + 1:i.index + 1 + bin_pow], byteorder=ORDER)
-        bin_str = b[i.index + 1 + bin_pow:i.index + 1 + bin_pow + bin_len].decode()
-        i.index += 1 + bin_pow + bin_len
-        return bin_str
-
-    @staticmethod
-    def int2bin(i):
-        int_pow = 1 if i == 0 else max(1, int(math.log(i, 256) + 1))
-        return int_pow.to_bytes(1, byteorder=ORDER) + i.to_bytes(int_pow, byteorder=ORDER)
-
-    @staticmethod
-    def bin2int(b, i):
-        bin_pow = b[i.index]
-        bin_int = int.from_bytes(b[i.index + 1:i.index + 1 + bin_pow], byteorder=ORDER)
-        i.index += 1 + bin_pow
-        return bin_int
-
-    @staticmethod
-    def byte2bin(h):
-        byte_len = len(h)
-        byte_pow = 1 if byte_len == 0 else max(1, int(math.log(byte_len, 256) + 1))
-        return byte_pow.to_bytes(1, byteorder=ORDER) + byte_len.to_bytes(byte_pow, byteorder=ORDER) + h
-
-    @staticmethod
-    def bin2byte(b, i):
-        bin_pow = b[i.index]
-        bin_len = int.from_bytes(b[i.index + 1:i.index + 1 + bin_pow], byteorder=ORDER)
-        bin_byte = b[i.index + 1 + bin_pow:i.index + 1 + bin_pow + bin_len]
-        i.index += 1 + bin_pow + bin_len
-        return bin_byte
-
-    @staticmethod
-    def bool2bin(tf):
-        return b'\x01' if tf else b'\x00'
-
-    @staticmethod
-    def bin2bool(b, i):
-        r = True if b[i.index] == 1 else False
-        i.index += 1
-        return r
-
-    @staticmethod
-    def cmp2bin(c):
-        real = BinaryTool.float2bin(f=c.real)
-        imag = BinaryTool.float2bin(f=c.imag)
-        return real + imag
-
-    @staticmethod
-    def bin2cmp(b, i):
-        real = BinaryTool.bin2float(b=b, i=i)
-        imag = BinaryTool.bin2float(b=b, i=i)
-        return complex(real=real, imag=imag)
-
-
 def _dumps(obj):
     if isinstance(obj, bool):
         b = BIN_BOOL
-        b += BinaryTool.bool2bin(tf=obj)
+        b += b'\x01' if obj else b'\x00'
     elif isinstance(obj, int) and obj >= 0:
         b = BIN_INT
-        b += BinaryTool.int2bin(i=obj)
+        int_pow = 1 if obj == 0 else max(1, int(math.log(obj, 256) + 1))
+        b += int_pow.to_bytes(1, byteorder=ORDER) + obj.to_bytes(int_pow, byteorder=ORDER)
 
     elif isinstance(obj, int):
         b = BIN_MINUS_INT
-        b += BinaryTool.int2bin(i=-1 * obj)
+        i = -1 * obj
+        int_pow = 1 if i == 0 else max(1, int(math.log(i, 256) + 1))
+        b += int_pow.to_bytes(1, byteorder=ORDER) + i.to_bytes(int_pow, byteorder=ORDER)
 
     elif isinstance(obj, complex):
         b = BIN_COMPLEX
-        b += BinaryTool.cmp2bin(c=obj)
+        real = struct.pack("d", obj.real)
+        imag = struct.pack("d", obj.imag)
+        b += real + imag
 
     elif isinstance(obj, float):
         b = BIN_FLOAT
-        b += BinaryTool.float2bin(f=obj)
+        b += struct.pack("d", obj)
 
     elif isinstance(obj, str) and len(obj) < 256:
         b = BIN_STR
-        b += BinaryTool.str2bin(s=obj)
+        str_bytes = obj.encode()
+        b += len(str_bytes).to_bytes(1, byteorder=ORDER) + str_bytes
 
     elif isinstance(obj, str):
         b = BIN_STR_LONG
-        b += BinaryTool.str_long2bin(s=obj)
+        str_bytes = obj.encode()
+        str_len = len(str_bytes)
+        str_pow = 1 if str_len == 0 else max(1, int(math.log(str_len, 256) + 1))
+        b += str_pow.to_bytes(1, byteorder=ORDER) + str_len.to_bytes(str_pow, byteorder=ORDER) + str_bytes
 
     elif isinstance(obj, bytes):
         b = BIN_BYTES
-        b += BinaryTool.byte2bin(h=obj)
+        byte_len = len(obj)
+        byte_pow = 1 if byte_len == 0 else max(1, int(math.log(byte_len, 256) + 1))
+        b += byte_pow.to_bytes(1, byteorder=ORDER) + byte_len.to_bytes(byte_pow, byteorder=ORDER) + obj
 
     elif isinstance(obj, list):
         b = BIN_LIST
-        b += BinaryTool.int2bin(i=len(obj))
+        i = len(obj)
+        int_pow = 1 if i == 0 else max(1, int(math.log(i, 256) + 1))
+        b += int_pow.to_bytes(1, byteorder=ORDER) + i.to_bytes(int_pow, byteorder=ORDER)
         for n in obj:
             b += _dumps(obj=n)
 
     elif isinstance(obj, tuple):
         b = BIN_TUPLE
-        b += BinaryTool.int2bin(i=len(obj))
+        i = len(obj)
+        int_pow = 1 if i == 0 else max(1, int(math.log(i, 256) + 1))
+        b += int_pow.to_bytes(1, byteorder=ORDER) + i.to_bytes(int_pow, byteorder=ORDER)
         for n in obj:
             b += _dumps(obj=n)
 
     elif isinstance(obj, set):
         b = BIN_SET
-        b += BinaryTool.int2bin(i=len(obj))
+        i = len(obj)
+        int_pow = 1 if i == 0 else max(1, int(math.log(i, 256) + 1))
+        b += int_pow.to_bytes(1, byteorder=ORDER) + i.to_bytes(int_pow, byteorder=ORDER)
         for n in sorted(obj):
             b += _dumps(obj=n)
 
     elif isinstance(obj, dict):
         b = BIN_DICT
-        b += BinaryTool.int2bin(i=len(obj))
+        i = len(obj)
+        int_pow = 1 if i == 0 else max(1, int(math.log(i, 256) + 1))
+        b += int_pow.to_bytes(1, byteorder=ORDER) + i.to_bytes(int_pow, byteorder=ORDER)
         for k in sorted(obj):
-            b += _dumps(obj=k)
-            b += _dumps(obj=obj[k])
+            b += _dumps(obj=k) + _dumps(obj=obj[k])
 
     elif isinstance(obj, type(None)):
         b = BIN_NULL
@@ -192,7 +122,7 @@ def _dumps(obj):
     return b
 
 
-def dumps(obj, compress=True):
+def dumps(obj, compress=False):
     try:
         b = _dumps(obj=obj)
     except Exception as e:
@@ -204,7 +134,7 @@ def dumps(obj, compress=True):
         return b'\x01' + VERSION + b
 
 
-def dump(obj, fp, compress=True):
+def dump(obj, fp, compress=False):
     assert 'b' in fp.mode, 'Need binary mode'
     fp.write(dumps(obj=obj, compress=compress))
 
@@ -214,36 +144,62 @@ def _loads(b, i):
     i.index += 1
 
     if b_type == BOOL:
-        result = BinaryTool.bin2bool(b=b, i=i)
+        result = True if b[i.index] == 1 else False
+        i.index += 1
     elif b_type == INT:
-        result = BinaryTool.bin2int(b=b, i=i)
+        bin_pow = b[i.index]
+        result = int.from_bytes(b[i.index + 1:i.index + 1 + bin_pow], byteorder=ORDER)
+        i.index += 1 + bin_pow
     elif b_type == MINUS_INT:
-        result = BinaryTool.bin2int(b=b, i=i) * -1
+        bin_pow = b[i.index]
+        result = int.from_bytes(b[i.index + 1:i.index + 1 + bin_pow], byteorder=ORDER) * -1
+        i.index += 1 + bin_pow
     elif b_type == COMPLEX:
-        result = BinaryTool.bin2cmp(b=b, i=i)
+        real = struct.unpack("d", b[i.index:i.index + 8])[0]
+        i.index += 8
+        imag = struct.unpack("d", b[i.index:i.index + 8])[0]
+        i.index += 8
+        result = complex(real, imag)
     elif b_type == FLOAT:
-        result = BinaryTool.bin2float(b=b, i=i)
+        result = struct.unpack("d", b[i.index:i.index+8])[0]
+        i.index += 8
     elif b_type == STR:
-        result = BinaryTool.bin2str(b=b, i=i)
+        bin_len = b[i.index]
+        result = b[i.index + 1:i.index + 1 + bin_len].decode()
+        i.index += 1 + bin_len
     elif b_type == STR_LONG:
-        result = BinaryTool.bin2str_long(b=b, i=i)
+        bin_pow = b[i.index]
+        bin_len = int.from_bytes(b[i.index + 1:i.index + 1 + bin_pow], byteorder=ORDER)
+        result = b[i.index + 1 + bin_pow:i.index + 1 + bin_pow + bin_len].decode()
+        i.index += 1 + bin_pow + bin_len
     elif b_type == BYTES:
-        result = BinaryTool.bin2byte(b=b, i=i)
+        bin_pow = b[i.index]
+        bin_len = int.from_bytes(b[i.index + 1:i.index + 1 + bin_pow], byteorder=ORDER)
+        result = b[i.index + 1 + bin_pow:i.index + 1 + bin_pow + bin_len]
+        i.index += 1 + bin_pow + bin_len
 
     elif b_type == LIST:
-        list_len = BinaryTool.bin2int(b=b, i=i)
+        bin_pow = b[i.index]
+        list_len = int.from_bytes(b[i.index + 1:i.index + 1 + bin_pow], byteorder=ORDER)
+        i.index += 1 + bin_pow
         result = [_loads(b=b, i=i) for dummy in range(list_len)]
 
     elif b_type == TUPLE:
-        tuple_len = BinaryTool.bin2int(b=b, i=i)
+        bin_pow = b[i.index]
+        tuple_len = int.from_bytes(b[i.index + 1:i.index + 1 + bin_pow], byteorder=ORDER)
+        i.index += 1 + bin_pow
         result = tuple(_loads(b=b, i=i) for dummy in range(tuple_len))
 
     elif b_type == SET:
-        set_len = BinaryTool.bin2int(b=b, i=i)
+        bin_pow = b[i.index]
+        set_len = int.from_bytes(b[i.index + 1:i.index + 1 + bin_pow], byteorder=ORDER)
+        i.index += 1 + bin_pow
         result = {_loads(b=b, i=i) for dummy in range(set_len)}
 
     elif b_type == DICT:
-        dict_len = BinaryTool.bin2int(b=b, i=i)
+        bin_pow = b[i.index]
+        dict_len = int.from_bytes(b[i.index + 1:i.index + 1 + bin_pow], byteorder=ORDER)
+        i.index += 1 + bin_pow
         result = dict()
         for dummy in range(dict_len):
             k = _loads(b=b, i=i)
@@ -262,7 +218,8 @@ def loads(b, check_ver=True):
     f_compressed = (b[0] == 0)
     i_version = b[1].to_bytes(1, byteorder=ORDER)
     if check_ver and i_version != VERSION:
-        raise BJsonVersionError("Do not match bjson version. this:%s, input:%s" % (VERSION, i_version))
+        raise BJsonVersionError("Do not match bjson version. this:{}, input:{}"
+                                .format(VERSION[0], i_version[0]))
 
     b = zlib.decompress(b[2:]) if f_compressed else b[2:]
     i = Index()
