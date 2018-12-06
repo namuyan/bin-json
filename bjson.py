@@ -4,6 +4,7 @@
 import math
 import struct
 import zlib
+from io import BytesIO
 
 ORDER = 'big'
 BOOL = 0
@@ -40,98 +41,113 @@ class Index:
     all = 0
 
 
-def _dumps(obj):
+def _dumps(obj, b):
     if isinstance(obj, bool):
-        b = BIN_BOOL
-        b += b'\x01' if obj else b'\x00'
+        b.write(BIN_BOOL)
+        b.write(b'\x01' if obj else b'\x00')
+
     elif isinstance(obj, int) and obj >= 0:
-        b = BIN_INT
+        b.write(BIN_INT)
         int_pow = 1 if obj == 0 else max(1, int(math.log(obj, 256) + 1))
-        b += int_pow.to_bytes(1, byteorder=ORDER) + obj.to_bytes(int_pow, byteorder=ORDER)
+        b.write(int_pow.to_bytes(1, byteorder=ORDER))
+        b.write(obj.to_bytes(int_pow, byteorder=ORDER))
 
     elif isinstance(obj, int):
-        b = BIN_MINUS_INT
+        b.write(BIN_MINUS_INT)
         i = -1 * obj
         int_pow = 1 if i == 0 else max(1, int(math.log(i, 256) + 1))
-        b += int_pow.to_bytes(1, byteorder=ORDER) + i.to_bytes(int_pow, byteorder=ORDER)
+        b.write(int_pow.to_bytes(1, byteorder=ORDER))
+        b.write(i.to_bytes(int_pow, byteorder=ORDER))
 
     elif isinstance(obj, complex):
-        b = BIN_COMPLEX
+        b.write(BIN_COMPLEX)
         real = struct.pack("d", obj.real)
         imag = struct.pack("d", obj.imag)
-        b += real + imag
+        b.write(real + imag)
 
     elif isinstance(obj, float):
-        b = BIN_FLOAT
-        b += struct.pack("d", obj)
+        b.write(BIN_FLOAT)
+        b.write(struct.pack("d", obj))
 
     elif isinstance(obj, str) and len(obj) < 256:
-        b = BIN_STR
+        b.write(BIN_STR)
         str_bytes = obj.encode()
-        b += len(str_bytes).to_bytes(1, byteorder=ORDER) + str_bytes
+        b.write(len(str_bytes).to_bytes(1, byteorder=ORDER))
+        b.write(str_bytes)
 
     elif isinstance(obj, str):
-        b = BIN_STR_LONG
+        b.write(BIN_STR_LONG)
         str_bytes = obj.encode()
         str_len = len(str_bytes)
         str_pow = 1 if str_len == 0 else max(1, int(math.log(str_len, 256) + 1))
-        b += str_pow.to_bytes(1, byteorder=ORDER) + str_len.to_bytes(str_pow, byteorder=ORDER) + str_bytes
+        b.write(str_pow.to_bytes(1, byteorder=ORDER))
+        b.write(str_len.to_bytes(str_pow, byteorder=ORDER))
+        b.write(str_bytes)
 
     elif isinstance(obj, bytes):
-        b = BIN_BYTES
+        b.write(BIN_BYTES)
         byte_len = len(obj)
         byte_pow = 1 if byte_len == 0 else max(1, int(math.log(byte_len, 256) + 1))
-        b += byte_pow.to_bytes(1, byteorder=ORDER) + byte_len.to_bytes(byte_pow, byteorder=ORDER) + obj
+        b.write(byte_pow.to_bytes(1, byteorder=ORDER))
+        b.write(byte_len.to_bytes(byte_pow, byteorder=ORDER))
+        b.write(obj)
 
     elif isinstance(obj, list):
-        b = BIN_LIST
+        b.write(BIN_LIST)
         i = len(obj)
         int_pow = 1 if i == 0 else max(1, int(math.log(i, 256) + 1))
-        b += int_pow.to_bytes(1, byteorder=ORDER) + i.to_bytes(int_pow, byteorder=ORDER)
+        b.write(int_pow.to_bytes(1, byteorder=ORDER))
+        b.write(i.to_bytes(int_pow, byteorder=ORDER))
         for n in obj:
-            b += _dumps(obj=n)
+            _dumps(obj=n, b=b)
 
     elif isinstance(obj, tuple):
-        b = BIN_TUPLE
+        b.write(BIN_TUPLE)
         i = len(obj)
         int_pow = 1 if i == 0 else max(1, int(math.log(i, 256) + 1))
-        b += int_pow.to_bytes(1, byteorder=ORDER) + i.to_bytes(int_pow, byteorder=ORDER)
+        b.write(int_pow.to_bytes(1, byteorder=ORDER))
+        b.write(i.to_bytes(int_pow, byteorder=ORDER))
         for n in obj:
-            b += _dumps(obj=n)
+            _dumps(obj=n, b=b)
 
     elif isinstance(obj, set):
-        b = BIN_SET
+        b.write(BIN_SET)
         i = len(obj)
         int_pow = 1 if i == 0 else max(1, int(math.log(i, 256) + 1))
-        b += int_pow.to_bytes(1, byteorder=ORDER) + i.to_bytes(int_pow, byteorder=ORDER)
+        b.write(int_pow.to_bytes(1, byteorder=ORDER))
+        b.write(i.to_bytes(int_pow, byteorder=ORDER))
         for n in sorted(obj):
-            b += _dumps(obj=n)
+            _dumps(obj=n, b=b)
 
     elif isinstance(obj, dict):
-        b = BIN_DICT
+        b.write(BIN_DICT)
         i = len(obj)
         int_pow = 1 if i == 0 else max(1, int(math.log(i, 256) + 1))
-        b += int_pow.to_bytes(1, byteorder=ORDER) + i.to_bytes(int_pow, byteorder=ORDER)
+        b.write(int_pow.to_bytes(1, byteorder=ORDER))
+        b.write(i.to_bytes(int_pow, byteorder=ORDER))
         for k in sorted(obj):
-            b += _dumps(obj=k) + _dumps(obj=obj[k])
+            _dumps(obj=k, b=b)
+            _dumps(obj=obj[k], b=b)
 
     elif isinstance(obj, type(None)):
-        b = BIN_NULL
+        b.write(BIN_NULL)
     else:
         raise BJsonEncodeError('Unknown type %s' % type(obj))
-    return b
 
 
 def dumps(obj, compress=False):
     try:
-        b = _dumps(obj=obj)
+        b = BytesIO()
+        _dumps(obj=obj, b=b)
+        r = b.getvalue()
+        b.close()
     except Exception as e:
         raise BJsonEncodeError(e)
 
     if compress:
-        return b'\x00' + VERSION + zlib.compress(b)
+        return b'\x00' + VERSION + zlib.compress(r)
     else:
-        return b'\x01' + VERSION + b
+        return b'\x01' + VERSION + r
 
 
 def dump(obj, fp, compress=False):
