@@ -1,10 +1,12 @@
-#!/user/env python3
-# -*- coding: utf-8 -*-
-
+from bjson.body import Data
+from bjson.exception import *
 import math
 import struct
-import zlib
 from io import BytesIO
+
+"""
+protocol version 2
+"""
 
 ORDER = 'big'
 BOOL = 0
@@ -20,7 +22,6 @@ TUPLE = 9
 SET = 10
 DICT = 11
 NULL = 12
-VERSION = int(2).to_bytes(1, byteorder=ORDER)
 BIN_BOOL = BOOL.to_bytes(1, byteorder=ORDER)
 BIN_INT = INT.to_bytes(1, byteorder=ORDER)
 BIN_MINUS_INT = MINUS_INT.to_bytes(1, byteorder=ORDER)
@@ -36,12 +37,7 @@ BIN_DICT = DICT.to_bytes(1, byteorder=ORDER)
 BIN_NULL = NULL.to_bytes(1, byteorder=ORDER)
 
 
-class Index:
-    index = 0
-    all = 0
-
-
-def _dumps(obj, b):
+def _dumps_ver2(obj, b: BytesIO):
     if isinstance(obj, bool):
         b.write(BIN_BOOL)
         b.write(b'\x01' if obj else b'\x00')
@@ -99,7 +95,7 @@ def _dumps(obj, b):
         b.write(int_pow.to_bytes(1, byteorder=ORDER))
         b.write(i.to_bytes(int_pow, byteorder=ORDER))
         for n in obj:
-            _dumps(obj=n, b=b)
+            _dumps_ver2(obj=n, b=b)
 
     elif isinstance(obj, tuple):
         b.write(BIN_TUPLE)
@@ -108,7 +104,7 @@ def _dumps(obj, b):
         b.write(int_pow.to_bytes(1, byteorder=ORDER))
         b.write(i.to_bytes(int_pow, byteorder=ORDER))
         for n in obj:
-            _dumps(obj=n, b=b)
+            _dumps_ver2(obj=n, b=b)
 
     elif isinstance(obj, set):
         b.write(BIN_SET)
@@ -117,7 +113,7 @@ def _dumps(obj, b):
         b.write(int_pow.to_bytes(1, byteorder=ORDER))
         b.write(i.to_bytes(int_pow, byteorder=ORDER))
         for n in sorted(obj):
-            _dumps(obj=n, b=b)
+            _dumps_ver2(obj=n, b=b)
 
     elif isinstance(obj, dict):
         b.write(BIN_DICT)
@@ -126,8 +122,8 @@ def _dumps(obj, b):
         b.write(int_pow.to_bytes(1, byteorder=ORDER))
         b.write(i.to_bytes(int_pow, byteorder=ORDER))
         for k in sorted(obj):
-            _dumps(obj=k, b=b)
-            _dumps(obj=obj[k], b=b)
+            _dumps_ver2(obj=k, b=b)
+            _dumps_ver2(obj=obj[k], b=b)
 
     elif isinstance(obj, type(None)):
         b.write(BIN_NULL)
@@ -135,27 +131,7 @@ def _dumps(obj, b):
         raise BJsonEncodeError('Unknown type %s' % type(obj))
 
 
-def dumps(obj, compress=False):
-    try:
-        b = BytesIO()
-        _dumps(obj=obj, b=b)
-        r = b.getvalue()
-        b.close()
-    except Exception as e:
-        raise BJsonEncodeError(e)
-
-    if compress:
-        return b'\x00' + VERSION + zlib.compress(r)
-    else:
-        return b'\x01' + VERSION + r
-
-
-def dump(obj, fp, compress=False):
-    assert 'b' in fp.mode, 'Need binary mode'
-    fp.write(dumps(obj=obj, compress=compress))
-
-
-def _loads(b, i):
+def _loads_ver2(b: bytes, i: Data):
     b_type = b[i.index]
     i.index += 1
 
@@ -198,19 +174,19 @@ def _loads(b, i):
         bin_pow = b[i.index]
         list_len = int.from_bytes(b[i.index + 1:i.index + 1 + bin_pow], byteorder=ORDER)
         i.index += 1 + bin_pow
-        result = [_loads(b=b, i=i) for dummy in range(list_len)]
+        result = [_loads_ver2(b=b, i=i) for dummy in range(list_len)]
 
     elif b_type == TUPLE:
         bin_pow = b[i.index]
         tuple_len = int.from_bytes(b[i.index + 1:i.index + 1 + bin_pow], byteorder=ORDER)
         i.index += 1 + bin_pow
-        result = tuple(_loads(b=b, i=i) for dummy in range(tuple_len))
+        result = tuple(_loads_ver2(b=b, i=i) for dummy in range(tuple_len))
 
     elif b_type == SET:
         bin_pow = b[i.index]
         set_len = int.from_bytes(b[i.index + 1:i.index + 1 + bin_pow], byteorder=ORDER)
         i.index += 1 + bin_pow
-        result = {_loads(b=b, i=i) for dummy in range(set_len)}
+        result = {_loads_ver2(b=b, i=i) for dummy in range(set_len)}
 
     elif b_type == DICT:
         bin_pow = b[i.index]
@@ -218,8 +194,8 @@ def _loads(b, i):
         i.index += 1 + bin_pow
         result = dict()
         for dummy in range(dict_len):
-            k = _loads(b=b, i=i)
-            v = _loads(b=b, i=i)
+            k = _loads_ver2(b=b, i=i)
+            v = _loads_ver2(b=b, i=i)
             result[k] = v
 
     elif b_type == NULL:
@@ -228,42 +204,3 @@ def _loads(b, i):
     else:
         raise BJsonDecodeError('Unknown type %d' % b_type)
     return result
-
-
-def loads(b, check_ver=True):
-    f_compressed = (b[0] == 0)
-    i_version = b[1].to_bytes(1, byteorder=ORDER)
-    if check_ver and i_version != VERSION:
-        raise BJsonVersionError("Do not match bjson version. this:{}, input:{}"
-                                .format(VERSION[0], i_version[0]))
-
-    b = zlib.decompress(b[2:]) if f_compressed else b[2:]
-    i = Index()
-    i.all = len(b)
-    try:
-        result = _loads(b=b, i=i)
-    except Exception as e:
-        raise BJsonDecodeError(e)
-
-    if i.all == i.index:
-        return result
-    else:
-        raise BJsonDecodeError('output binary isn\'t zero. %s' % b)
-
-
-def load(fp, check_ver=True):
-    assert 'b' in fp.mode, 'Need binary mode'
-    b = fp.read()
-    return loads(b=b, check_ver=check_ver)
-
-
-class BJsonBaseError(Exception): pass
-
-
-class BJsonEncodeError(BJsonBaseError): pass
-
-
-class BJsonDecodeError(BJsonBaseError): pass
-
-
-class BJsonVersionError(BJsonBaseError): pass
